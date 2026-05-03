@@ -1,0 +1,90 @@
+[
+  {
+    "query": "Replace AG Grid with Perspective.",
+    "should_trigger": true
+  },
+  {
+    "query": "In our React app we need a viewer for rows coming back from /api/orders and default it to a datagrid grouped by customer_region.",
+    "should_trigger": true
+  },
+  {
+    "query": "The app already has React and I want to embed Perspective so users can pivot sales data by state and switch between grid and chart views.",
+    "should_trigger": true
+  },
+  {
+    "query": "Can you fix this blank <PerspectiveViewer> in my TSX file?",
+    "should_trigger": true
+  },
+  {
+    "query": "Build a browser dashboard using @perspective-dev/react with two panels: one datagrid and one chart, both driven by the same Arrow table.",
+    "should_trigger": true
+  },
+  {
+    "query": "I need a streaming browser analytics table. New trade ticks should update the Perspective table without remounting the viewer every second.",
+    "should_trigger": true
+  },
+  {
+    "query": "We have a custom element <perspective-viewer> in a vanilla JS app. Add viewer-datagrid and viewer-charts imports and load JSON rows into it.",
+    "should_trigger": true
+  },
+  {
+    "query": "Convert this old @finos/perspective integration to the current @perspective-dev packages and keep the same viewer config.",
+    "should_trigger": true
+  },
+  {
+    "query": "Set up the WebAssembly bootstrapping for Perspective in Webpack so @perspective-dev/client and @perspective-dev/viewer work in production.",
+    "should_trigger": true
+  },
+  {
+    "query": "Add a PerspectiveWorkspace to our React dashboard so users can save and restore multi-view layouts over the same worker-backed table.",
+    "should_trigger": true
+  },
+  {
+    "query": "My perspective-viewer menu doesn't show charts, only datagrid. Figure out what imports or package setup are missing.",
+    "should_trigger": true
+  },
+  {
+    "query": "Give your perspective on this code.",
+    "should_trigger": false
+  },
+  {
+    "query": "Make a simple D3 line chart from this array of temperature readings in a standalone HTML page.",
+    "should_trigger": false
+  },
+  {
+    "query": "Use Chart.js in React to render monthly revenue as a bar chart with tooltips and a legend.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a Python pandas script that reads sales.csv and creates a matplotlib histogram.",
+    "should_trigger": false
+  },
+  {
+    "query": "Create an Excel formula that calculates profit margin and conditionally formats rows below 10%.",
+    "should_trigger": false
+  },
+  {
+    "query": "Help me choose between Tableau, Power BI, and Looker for an executive reporting stack.",
+    "should_trigger": false
+  },
+  {
+    "query": "In my React app, fix a hydration error caused by accessing window during server-side rendering.",
+    "should_trigger": false
+  },
+  {
+    "query": "Build a static SVG pie chart component in Svelte using no third-party data visualization libraries.",
+    "should_trigger": false
+  },
+  {
+    "query": "Optimize this SQL query that aggregates order totals by day for a reporting endpoint.",
+    "should_trigger": false
+  },
+  {
+    "query": "Write a Vega-Lite spec for a scatterplot of horsepower vs mpg from a cars dataset.",
+    "should_trigger": false
+  },
+  {
+    "query": "Add AG Grid Enterprise to our Angular app and configure column grouping and CSV export.",
+    "should_trigger": false
+  }
+]
