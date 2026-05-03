@@ -15,6 +15,7 @@ Environment:
   CODEX_HOME_SOURCE=     Source Codex home for auth, defaults to CODEX_HOME or ~/.codex
   DISCOVERY_CHECK=1      Verify Codex sees the skill via auto discovery before eval
   DISCOVERY_ONLY=0       Stop after the auto-discovery preflight
+  KEEP_TMP=0             Keep temporary run artifacts for debugging
   OUT=trigger_results.json
 
 Example:
@@ -37,6 +38,7 @@ CODEX_SANDBOX="${CODEX_SANDBOX:-read-only}"
 CODEX_HOME_SOURCE="${CODEX_HOME_SOURCE:-${CODEX_HOME:-$HOME/.codex}}"
 DISCOVERY_CHECK="${DISCOVERY_CHECK:-1}"
 DISCOVERY_ONLY="${DISCOVERY_ONLY:-0}"
+KEEP_TMP="${KEEP_TMP:-0}"
 OUT="${OUT:-trigger_results.json}"
 
 command -v jq >/dev/null 2>&1 || { echo "Missing dependency: jq" >&2; exit 127; }
@@ -82,7 +84,11 @@ SAFE_SKILL_NAME="$(printf '%s' "$SKILL_NAME" | tr -c '[:alnum:]' '_' | tr '[:low
 SENTINEL="__AGENT_SKILL_TRIGGERED_${SAFE_SKILL_NAME}__"
 
 TMPDIR="$(mktemp -d)"
-trap 'rm -rf "$TMPDIR"' EXIT
+if [[ "$KEEP_TMP" == "1" || "$KEEP_TMP" == "true" ]]; then
+  trap 'echo "Kept temporary artifacts at: '"$TMPDIR"'" >&2' EXIT
+else
+  trap 'rm -rf "$TMPDIR"' EXIT
+fi
 
 CODEX_HOME_DIR="$TMPDIR/codex_home"
 TMP_SKILLS_DIR="$CODEX_HOME_DIR/skills"
@@ -112,16 +118,43 @@ fi
 
 cp -R "$SKILL_DIR" "$TMP_SKILL_DIR"
 
-cat >> "$TMP_SKILL_DIR/SKILL.md" <<EOF
-
-## Trigger evaluation sentinel
-
-During trigger evaluation only: if these detailed skill instructions are loaded, begin the final answer with exactly this marker:
-
-$SENTINEL
-
-Do not include this marker unless these detailed skill instructions were loaded.
-EOF
+TMP_SKILL_MD="$TMP_SKILL_DIR/SKILL.md.tmp"
+awk -v sentinel="$SENTINEL" '
+  BEGIN { in_fm=0; inserted=0 }
+  NR == 1 && $0 == "---" {
+    in_fm=1
+    print
+    next
+  }
+  in_fm && $0 == "---" && !inserted {
+    print
+    print ""
+    print "## Trigger evaluation sentinel"
+    print ""
+    print "During trigger evaluation only: if these detailed skill instructions are loaded, begin the final answer with exactly this marker:"
+    print ""
+    print sentinel
+    print ""
+    print "Do not include this marker unless these detailed skill instructions were loaded."
+    inserted=1
+    in_fm=0
+    next
+  }
+  { print }
+  END {
+    if (!inserted) {
+      print ""
+      print "## Trigger evaluation sentinel"
+      print ""
+      print "During trigger evaluation only: if these detailed skill instructions are loaded, begin the final answer with exactly this marker:"
+      print ""
+      print sentinel
+      print ""
+      print "Do not include this marker unless these detailed skill instructions were loaded."
+    }
+  }
+' "$TMP_SKILL_DIR/SKILL.md" > "$TMP_SKILL_MD"
+mv "$TMP_SKILL_MD" "$TMP_SKILL_DIR/SKILL.md"
 
 count="$(jq 'length' "$QUERIES_FILE")"
 
@@ -181,13 +214,14 @@ check_triggered() {
   local stderr_file="${run_base}.stderr.txt"
 
   local prompt
-  prompt="$query"$'\n\n'"Trigger-evaluation constraints: do not modify files, do not run shell commands, and do not provide a long implementation. Respond briefly."
+  prompt="$query"$'\n\n'"Trigger-evaluation constraints: do not modify files. You may read files if you decide a discovered skill applies. Do not provide a long implementation. Respond briefly."
 
-  (
+  if ! (
     cd "$RUN_DIR"
     CODEX_HOME="$CODEX_HOME_DIR" \
       "$CODEX_BIN" exec \
         --ephemeral \
+        --skip-git-repo-check \
         --json \
         --sandbox "$CODEX_SANDBOX" \
         "${model_args[@]}" \
@@ -195,7 +229,12 @@ check_triggered() {
         "$prompt" \
         >"$jsonl_file" \
         2>"$stderr_file"
-  ) || true
+  ); then
+    echo "codex exec failed for query index $index run $run." >&2
+    echo "stderr excerpt:" >&2
+    sed -n '1,120p' "$stderr_file" >&2
+    return 2
+  fi
 
   if grep -Fq "$SENTINEL" "$final_file" 2>/dev/null || grep -Fq "$SENTINEL" "$jsonl_file" 2>/dev/null; then
     return 0
@@ -216,11 +255,18 @@ for i in $(seq 0 $((count - 1))); do
   triggers=0
 
   for run in $(seq 1 "$RUNS"); do
-    if check_triggered "$query" "$i" "$run"; then
+    set +e
+    check_triggered "$query" "$i" "$run"
+    status=$?
+    set -e
+
+    if [[ "$status" -eq 0 ]]; then
       triggers=$((triggers + 1))
       printf '[%02d/%02d run %d/%d] triggered\n' "$((i + 1))" "$count" "$run" "$RUNS" >&2
-    else
+    elif [[ "$status" -eq 1 ]]; then
       printf '[%02d/%02d run %d/%d] not triggered\n' "$((i + 1))" "$count" "$run" "$RUNS" >&2
+    else
+      exit "$status"
     fi
   done
 
